@@ -1,6 +1,7 @@
 package selfupdate
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,6 +29,9 @@ func teardownTestBinary() {
 }
 
 func TestUpdateCommand(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if testing.Short() {
 		t.Skip("skip tests in short mode.")
 	}
@@ -45,7 +49,7 @@ func TestUpdateCommand(t *testing.T) {
 			defer teardownTestBinary()
 			latest := semver.MustParse("1.2.3")
 			prev := semver.MustParse("1.2.2")
-			rel, err := UpdateCommand("github-release-test", prev, slug)
+			rel, err := UpdateCommand(ctx, "github-release-test", prev, slug)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -65,6 +69,9 @@ func TestUpdateCommand(t *testing.T) {
 }
 
 func TestUpdateViaSymlink(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if testing.Short() {
 		t.Skip("skip tests in short mode.")
 	}
@@ -87,7 +94,7 @@ func TestUpdateViaSymlink(t *testing.T) {
 
 	latest := semver.MustParse("1.2.3")
 	prev := semver.MustParse("1.2.2")
-	rel, err := UpdateCommand(symPath, prev, "rhysd-test/test-release-zip")
+	rel, err := UpdateCommand(ctx, symPath, prev, "rhysd-test/test-release-zip")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,6 +129,9 @@ func TestUpdateViaSymlink(t *testing.T) {
 }
 
 func TestUpdateBrokenSymlinks(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if runtime.GOOS == "windows" && os.Getenv("APPVEYOR") == "" {
 		t.Skip("skipping because creating symlink on windows requires the root privilege")
 	}
@@ -144,7 +154,7 @@ func TestUpdateBrokenSymlinks(t *testing.T) {
 
 	v := semver.MustParse("1.2.2")
 	for _, p := range []string{yyy, xxx} {
-		_, err := UpdateCommand(p, v, "owner/repo")
+		_, err := UpdateCommand(ctx, p, v, "owner/repo")
 		if err == nil {
 			t.Fatal("Error should occur for unlinked symlink", p)
 		}
@@ -155,7 +165,10 @@ func TestUpdateBrokenSymlinks(t *testing.T) {
 }
 
 func TestNotExistingCommandPath(t *testing.T) {
-	_, err := UpdateCommand("not-existing-command-path", semver.MustParse("1.2.2"), "owner/repo")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err := UpdateCommand(ctx, "not-existing-command-path", semver.MustParse("1.2.2"), "owner/repo")
 	if err == nil {
 		t.Fatal("Not existing command path should cause an error")
 	}
@@ -165,9 +178,12 @@ func TestNotExistingCommandPath(t *testing.T) {
 }
 
 func TestNoReleaseFoundForUpdate(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	v := semver.MustParse("1.0.0")
 	fake := filepath.FromSlash("./testdata/fake-executable")
-	rel, err := UpdateCommand(fake, v, "rhysd/misc")
+	rel, err := UpdateCommand(ctx, fake, v, "rhysd/misc")
 	if err != nil {
 		t.Fatal("No release should not make an error:", err)
 	}
@@ -186,6 +202,9 @@ func TestNoReleaseFoundForUpdate(t *testing.T) {
 }
 
 func TestCurrentIsTheLatest(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if testing.Short() {
 		t.Skip("skip tests in short mode.")
 	}
@@ -193,7 +212,7 @@ func TestCurrentIsTheLatest(t *testing.T) {
 	defer teardownTestBinary()
 
 	v := semver.MustParse("1.2.3")
-	rel, err := UpdateCommand("github-release-test", v, "rhysd-test/test-release-zip")
+	rel, err := UpdateCommand(ctx, "github-release-test", v, "rhysd-test/test-release-zip")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,12 +231,15 @@ func TestCurrentIsTheLatest(t *testing.T) {
 }
 
 func TestBrokenBinaryUpdate(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if testing.Short() {
 		t.Skip("skip tests in short mode.")
 	}
 
 	fake := filepath.FromSlash("./testdata/fake-executable")
-	_, err := UpdateCommand(fake, semver.MustParse("1.2.2"), "rhysd-test/test-incorrect-release")
+	_, err := UpdateCommand(ctx, fake, semver.MustParse("1.2.2"), "rhysd-test/test-incorrect-release")
 	if err == nil {
 		t.Fatal("Error should occur for broken package")
 	}
@@ -227,8 +249,11 @@ func TestBrokenBinaryUpdate(t *testing.T) {
 }
 
 func TestInvalidSlugForUpdate(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	fake := filepath.FromSlash("./testdata/fake-executable")
-	_, err := UpdateCommand(fake, semver.MustParse("1.0.0"), "rhysd/")
+	_, err := UpdateCommand(ctx, fake, semver.MustParse("1.0.0"), "rhysd/")
 	if err == nil {
 		t.Fatal("Unknown repo should cause an error")
 	}
@@ -238,7 +263,10 @@ func TestInvalidSlugForUpdate(t *testing.T) {
 }
 
 func TestInvalidAssetURL(t *testing.T) {
-	err := UpdateTo("https://github.com/rhysd/non-existing-repo/releases/download/v1.2.3/foo.zip", "foo")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := UpdateTo(ctx, "https://github.com/rhysd/non-existing-repo/releases/download/v1.2.3/foo.zip", "foo")
 	if err == nil {
 		t.Fatal("Error should occur for URL not found")
 	}
@@ -248,8 +276,11 @@ func TestInvalidAssetURL(t *testing.T) {
 }
 
 func TestBrokenAsset(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	asset := "https://github.com/rhysd-test/test-incorrect-release/releases/download/invalid/broken-zip.zip"
-	err := UpdateTo(asset, "foo")
+	err := UpdateTo(ctx, asset, "foo")
 	if err == nil {
 		t.Fatal("Error should occur for URL not found")
 	}
@@ -259,11 +290,14 @@ func TestBrokenAsset(t *testing.T) {
 }
 
 func TestBrokenGitHubEnterpriseURL(t *testing.T) {
-	up, err := NewUpdater(Config{APIToken: "hogehoge", EnterpriseBaseURL: "https://example.com"})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	up, err := NewUpdater(ctx, Config{APIToken: "hogehoge", EnterpriseBaseURL: "https://example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = up.UpdateTo(&Release{AssetURL: "https://example.com"}, "foo")
+	err = up.UpdateTo(ctx, &Release{AssetURL: "https://example.com"}, "foo")
 	if err == nil {
 		t.Fatal("Invalid GitHub Enterprise base URL should raise an error")
 	}
@@ -273,6 +307,9 @@ func TestBrokenGitHubEnterpriseURL(t *testing.T) {
 }
 
 func TestUpdateFromGitHubEnterprise(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	token := os.Getenv("GITHUB_ENTERPRISE_TOKEN")
 	base := os.Getenv("GITHUB_ENTERPRISE_BASE_URL")
 	repo := os.Getenv("GITHUB_ENTERPRISE_REPO")
@@ -289,14 +326,14 @@ func TestUpdateFromGitHubEnterprise(t *testing.T) {
 	setupTestBinary()
 	defer teardownTestBinary()
 
-	up, err := NewUpdater(Config{APIToken: token, EnterpriseBaseURL: base})
+	up, err := NewUpdater(ctx, Config{APIToken: token, EnterpriseBaseURL: base})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	latest := semver.MustParse("1.2.3")
 	prev := semver.MustParse("1.2.2")
-	rel, err := up.UpdateCommand("github-release-test", prev, repo)
+	rel, err := up.UpdateCommand(ctx, "github-release-test", prev, repo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,6 +354,9 @@ func TestUpdateFromGitHubEnterprise(t *testing.T) {
 }
 
 func TestUpdateFromGitHubPrivateRepo(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	token := os.Getenv("GITHUB_PRIVATE_TOKEN")
 	if token == "" {
 		t.Skip("because GITHUB_PRIVATE_TOKEN is not set")
@@ -325,14 +365,14 @@ func TestUpdateFromGitHubPrivateRepo(t *testing.T) {
 	setupTestBinary()
 	defer teardownTestBinary()
 
-	up, err := NewUpdater(Config{APIToken: token})
+	up, err := NewUpdater(ctx, Config{APIToken: token})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	latest := semver.MustParse("1.2.3")
 	prev := semver.MustParse("1.2.2")
-	rel, err := up.UpdateCommand("github-release-test", prev, "rhysd/private-release-test")
+	rel, err := up.UpdateCommand(ctx, "github-release-test", prev, "rhysd/private-release-test")
 	if err != nil {
 		t.Fatal(err)
 	}

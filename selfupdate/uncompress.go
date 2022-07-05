@@ -6,12 +6,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"github.com/ulikunitz/xz"
 	"io"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/ulikunitz/xz"
 )
 
 func matchExecutableName(cmd, target string) bool {
@@ -61,7 +62,8 @@ func unarchiveTar(src io.Reader, url, cmd string) (io.Reader, error) {
 // This returns a reader for the uncompressed command given by 'cmd'. '.zip',
 // '.tar.gz', '.tar.xz', '.tgz', '.gz' and '.xz' are supported.
 func UncompressCommand(src io.Reader, url, cmd string) (io.Reader, error) {
-	if strings.HasSuffix(url, ".zip") {
+	switch {
+	case strings.HasSuffix(url, ".zip"):
 		log.Println("Uncompressing zip file", url)
 
 		// Zip format requires its file size for uncompressing.
@@ -86,7 +88,7 @@ func UncompressCommand(src io.Reader, url, cmd string) (io.Reader, error) {
 		}
 
 		return nil, fmt.Errorf("File '%s' for the command is not found in %s", cmd, url)
-	} else if strings.HasSuffix(url, ".tar.gz") || strings.HasSuffix(url, ".tgz") {
+	case strings.HasSuffix(url, ".tar.gz") || strings.HasSuffix(url, ".tgz"):
 		log.Println("Uncompressing tar.gz file", url)
 
 		gz, err := gzip.NewReader(src)
@@ -95,7 +97,7 @@ func UncompressCommand(src io.Reader, url, cmd string) (io.Reader, error) {
 		}
 
 		return unarchiveTar(gz, url, cmd)
-	} else if strings.HasSuffix(url, ".gzip") || strings.HasSuffix(url, ".gz") {
+	case strings.HasSuffix(url, ".gzip") || strings.HasSuffix(url, ".gz"):
 		log.Println("Uncompressing gzip file", url)
 
 		r, err := gzip.NewReader(src)
@@ -110,7 +112,7 @@ func UncompressCommand(src io.Reader, url, cmd string) (io.Reader, error) {
 
 		log.Println("Executable file", name, "was found in gzip file")
 		return r, nil
-	} else if strings.HasSuffix(url, ".tar.xz") {
+	case strings.HasSuffix(url, ".tar.xz"):
 		log.Println("Uncompressing tar.xz file", url)
 
 		xzip, err := xz.NewReader(src)
@@ -119,7 +121,7 @@ func UncompressCommand(src io.Reader, url, cmd string) (io.Reader, error) {
 		}
 
 		return unarchiveTar(xzip, url, cmd)
-	} else if strings.HasSuffix(url, ".xz") {
+	case strings.HasSuffix(url, ".xz"):
 		log.Println("Uncompressing xzip file", url)
 
 		xzip, err := xz.NewReader(src)
@@ -130,7 +132,6 @@ func UncompressCommand(src io.Reader, url, cmd string) (io.Reader, error) {
 		log.Println("Uncompressed file from xzip is assumed to be an executable", cmd)
 		return xzip, nil
 	}
-
 	log.Println("Uncompression is not needed", url)
 	return src, nil
 }

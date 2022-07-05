@@ -16,7 +16,6 @@ import (
 // It contains GitHub client and its context.
 type Updater struct {
 	api       *github.Client
-	apiCtx    context.Context
 	validator Validator
 	filters   []*regexp.Regexp
 }
@@ -49,7 +48,7 @@ func newHTTPClient(ctx context.Context, token string) *http.Client {
 
 // NewUpdater creates a new updater instance. It initializes GitHub API client.
 // If you set your API token to $GITHUB_TOKEN, the client will use it.
-func NewUpdater(config Config) (*Updater, error) {
+func NewUpdater(ctx context.Context, config Config) (*Updater, error) {
 	token := config.APIToken
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
@@ -57,7 +56,6 @@ func NewUpdater(config Config) (*Updater, error) {
 	if token == "" {
 		token, _ = gitconfig.GithubToken()
 	}
-	ctx := context.Background()
 	hc := newHTTPClient(ctx, token)
 
 	filtersRe := make([]*regexp.Regexp, 0, len(config.Filters))
@@ -71,7 +69,7 @@ func NewUpdater(config Config) (*Updater, error) {
 
 	if config.EnterpriseBaseURL == "" {
 		client := github.NewClient(hc)
-		return &Updater{api: client, apiCtx: ctx, validator: config.Validator, filters: filtersRe}, nil
+		return &Updater{api: client, validator: config.Validator, filters: filtersRe}, nil
 	}
 
 	u := config.EnterpriseUploadURL
@@ -82,18 +80,17 @@ func NewUpdater(config Config) (*Updater, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Updater{api: client, apiCtx: ctx, validator: config.Validator, filters: filtersRe}, nil
+	return &Updater{api: client, validator: config.Validator, filters: filtersRe}, nil
 }
 
 // DefaultUpdater creates a new updater instance with default configuration.
 // It initializes GitHub API client with default API base URL.
 // If you set your API token to $GITHUB_TOKEN, the client will use it.
-func DefaultUpdater() *Updater {
+func DefaultUpdater(ctx context.Context) *Updater {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
 		token, _ = gitconfig.GithubToken()
 	}
-	ctx := context.Background()
 	client := newHTTPClient(ctx, token)
-	return &Updater{api: github.NewClient(client), apiCtx: ctx}
+	return &Updater{api: github.NewClient(client)}
 }

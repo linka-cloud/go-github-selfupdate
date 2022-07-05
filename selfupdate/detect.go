@@ -1,6 +1,7 @@
 package selfupdate
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -125,17 +126,17 @@ func findReleasesAndAssets(rels []*github.RepositoryRelease, targetVersion strin
 // where 'foo' is a command name. '-' can also be used as a separator. File can be compressed with zip, gzip, zxip, tar&zip or tar&zxip.
 // So the asset can have a file extension for the corresponding compression format such as '.zip'.
 // On Windows, '.exe' also can be contained such as 'foo_windows_amd64.exe.zip'.
-func (up *Updater) DetectLatest(slug string) (release *Release, found bool, err error) {
-	return up.DetectVersion(slug, "")
+func (up *Updater) DetectLatest(ctx context.Context, slug string) (release *Release, found bool, err error) {
+	return up.DetectVersion(ctx, slug, "")
 }
 
-func (up *Updater) DetectVersions(slug string, version string) (releases []*Release, err error) {
+func (up *Updater) DetectVersions(ctx context.Context, slug string, version string) (releases []*Release, err error) {
 	repo := strings.Split(slug, "/")
 	if len(repo) != 2 || repo[0] == "" || repo[1] == "" {
 		return nil, fmt.Errorf("Invalid slug format. It should be 'owner/name': %s", slug)
 	}
 
-	rels, res, err := up.api.Repositories.ListReleases(up.apiCtx, repo[0], repo[1], nil)
+	rels, res, err := up.api.Repositories.ListReleases(ctx, repo[0], repo[1], nil)
 	if err != nil {
 		log.Println("API returned an error response:", err)
 		if res != nil && res.StatusCode == 404 {
@@ -180,8 +181,8 @@ func (up *Updater) DetectVersions(slug string, version string) (releases []*Rele
 
 // DetectVersion tries to get the given version of the repository on Github. `slug` means `owner/name` formatted string.
 // And version indicates the required version.
-func (up *Updater) DetectVersion(slug string, version string) (release *Release, found bool, err error) {
-	rs, err := up.DetectVersions(slug, version)
+func (up *Updater) DetectVersion(ctx context.Context, slug string, version string) (release *Release, found bool, err error) {
+	rs, err := up.DetectVersions(ctx, slug, version)
 	if err != nil {
 		return nil, false, err
 	}
@@ -196,11 +197,11 @@ func (up *Updater) DetectVersion(slug string, version string) (release *Release,
 
 // DetectLatest detects the latest release of the slug (owner/repo).
 // This function is a shortcut version of updater.DetectLatest() method.
-func DetectLatest(slug string) (*Release, bool, error) {
-	return DefaultUpdater().DetectLatest(slug)
+func DetectLatest(ctx context.Context, slug string) (*Release, bool, error) {
+	return DefaultUpdater(ctx).DetectLatest(ctx, slug)
 }
 
 // DetectVersion detects the given release of the slug (owner/repo) from its version.
-func DetectVersion(slug string, version string) (*Release, bool, error) {
-	return DefaultUpdater().DetectVersion(slug, version)
+func DetectVersion(ctx context.Context, slug string, version string) (*Release, bool, error) {
+	return DefaultUpdater(ctx).DetectVersion(ctx, slug, version)
 }

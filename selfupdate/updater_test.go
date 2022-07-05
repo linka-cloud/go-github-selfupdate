@@ -1,40 +1,50 @@
 package selfupdate
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
 )
 
 func TestGitHubTokenEnv(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
 		t.Skip("because $GITHUB_TOKEN is not set")
 	}
-	_ = DefaultUpdater()
-	if _, err := NewUpdater(Config{}); err != nil {
+	_ = DefaultUpdater(ctx)
+	if _, err := NewUpdater(ctx, Config{}); err != nil {
 		t.Error("Failed to initialize updater with empty config")
 	}
-	if _, err := NewUpdater(Config{APIToken: token}); err != nil {
+	if _, err := NewUpdater(ctx, Config{APIToken: token}); err != nil {
 		t.Error("Failed to initialize updater with API token config")
 	}
 }
 
 func TestGitHubTokenIsNotSet(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	token := os.Getenv("GITHUB_TOKEN")
 	if token != "" {
 		defer os.Setenv("GITHUB_TOKEN", token)
 	}
 	os.Setenv("GITHUB_TOKEN", "")
-	_ = DefaultUpdater()
-	if _, err := NewUpdater(Config{}); err != nil {
+	_ = DefaultUpdater(ctx)
+	if _, err := NewUpdater(ctx, Config{}); err != nil {
 		t.Error("Failed to initialize updater with empty config")
 	}
 }
 
 func TestGitHubEnterpriseClient(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	url := "https://github.company.com/api/v3/"
-	up, err := NewUpdater(Config{APIToken: "hogehoge", EnterpriseBaseURL: url})
+	up, err := NewUpdater(ctx, Config{APIToken: "hogehoge", EnterpriseBaseURL: url})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +56,7 @@ func TestGitHubEnterpriseClient(t *testing.T) {
 	}
 
 	url2 := "https://upload.github.company.com/api/v3/"
-	up, err = NewUpdater(Config{
+	up, err = NewUpdater(ctx, Config{
 		APIToken:            "hogehoge",
 		EnterpriseBaseURL:   url,
 		EnterpriseUploadURL: url2,
@@ -63,18 +73,24 @@ func TestGitHubEnterpriseClient(t *testing.T) {
 }
 
 func TestGitHubEnterpriseClientInvalidURL(t *testing.T) {
-	_, err := NewUpdater(Config{APIToken: "hogehoge", EnterpriseBaseURL: ":this is not a URL"})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err := NewUpdater(ctx, Config{APIToken: "hogehoge", EnterpriseBaseURL: ":this is not a URL"})
 	if err == nil {
 		t.Fatal("Invalid URL should raise an error")
 	}
 }
 
 func TestCompileRegexForFiltering(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	filters := []string{
 		"^hello$",
 		"^(\\d\\.)+\\d$",
 	}
-	up, err := NewUpdater(Config{
+	up, err := NewUpdater(ctx, Config{
 		Filters: filters,
 	})
 	if err != nil {
@@ -93,7 +109,10 @@ func TestCompileRegexForFiltering(t *testing.T) {
 }
 
 func TestFilterRegexIsBroken(t *testing.T) {
-	_, err := NewUpdater(Config{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err := NewUpdater(ctx, Config{
 		Filters: []string{"(foo"},
 	})
 	if err == nil {

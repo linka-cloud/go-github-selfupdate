@@ -1,6 +1,7 @@
 package selfupdate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -12,7 +13,10 @@ import (
 )
 
 func TestDetectReleaseWithVersionPrefix(t *testing.T) {
-	r, ok, err := DetectLatest("rhysd/github-clone-all")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, ok, err := DetectLatest(ctx, "rhysd/github-clone-all")
 	if err != nil {
 		t.Fatal("Fetch failed:", err)
 	}
@@ -55,8 +59,11 @@ func TestDetectReleaseWithVersionPrefix(t *testing.T) {
 }
 
 func TestDetectVersionExisting(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	testVersion := "v2.2.0"
-	r, ok, err := DetectVersion("rhysd/github-clone-all", testVersion)
+	r, ok, err := DetectVersion(ctx, "rhysd/github-clone-all", testVersion)
 	if err != nil {
 		t.Fatal("Fetch failed:", err)
 	}
@@ -69,7 +76,10 @@ func TestDetectVersionExisting(t *testing.T) {
 }
 
 func TestDetectVersionNotExisting(t *testing.T) {
-	r, ok, err := DetectVersion("rhysd/github-clone-all", "foobar")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	r, ok, err := DetectVersion(ctx, "rhysd/github-clone-all", "foobar")
 	if err != nil {
 		t.Fatal("Fetch failed:", err)
 	}
@@ -82,6 +92,9 @@ func TestDetectVersionNotExisting(t *testing.T) {
 }
 
 func TestDetectReleasesForVariousArchives(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	for _, tc := range []struct {
 		slug   string
 		prefix string
@@ -93,7 +106,7 @@ func TestDetectReleasesForVariousArchives(t *testing.T) {
 		{"rhysd-test/test-release-tar-xz", "release-"},
 	} {
 		t.Run(tc.slug, func(t *testing.T) {
-			r, ok, err := DetectLatest(tc.slug)
+			r, ok, err := DetectLatest(ctx, tc.slug)
 			if err != nil {
 				t.Fatal("Fetch failed:", err)
 			}
@@ -139,7 +152,10 @@ func TestDetectReleasesForVariousArchives(t *testing.T) {
 }
 
 func TestDetectReleaseButNoAsset(t *testing.T) {
-	_, ok, err := DetectLatest("rhysd/clever-f.vim")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, ok, err := DetectLatest(ctx, "rhysd/clever-f.vim")
 	if err != nil {
 		t.Fatal("Fetch failed:", err)
 	}
@@ -149,7 +165,10 @@ func TestDetectReleaseButNoAsset(t *testing.T) {
 }
 
 func TestDetectNoRelease(t *testing.T) {
-	_, ok, err := DetectLatest("rhysd/clever-f.vim")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, ok, err := DetectLatest(ctx, "rhysd/clever-f.vim")
 	if err != nil {
 		t.Fatal("Fetch failed:", err)
 	}
@@ -159,7 +178,10 @@ func TestDetectNoRelease(t *testing.T) {
 }
 
 func TestInvalidSlug(t *testing.T) {
-	up := DefaultUpdater()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	up := DefaultUpdater(ctx)
 
 	for _, slug := range []string{
 		"foo",
@@ -168,7 +190,7 @@ func TestInvalidSlug(t *testing.T) {
 		"/bar",
 		"foo/bar/piyo",
 	} {
-		_, _, err := up.DetectLatest(slug)
+		_, _, err := up.DetectLatest(ctx, slug)
 		if err == nil {
 			t.Error(slug, "should be invalid slug")
 		}
@@ -179,7 +201,10 @@ func TestInvalidSlug(t *testing.T) {
 }
 
 func TestNonExistingRepo(t *testing.T) {
-	v, ok, err := DetectLatest("rhysd/non-existing-repo")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	v, ok, err := DetectLatest(ctx, "rhysd/non-existing-repo")
 	if err != nil {
 		t.Fatal("Non-existing repo should not cause an error:", v)
 	}
@@ -189,7 +214,10 @@ func TestNonExistingRepo(t *testing.T) {
 }
 
 func TestNoReleaseFound(t *testing.T) {
-	_, ok, err := DetectLatest("rhysd/misc")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, ok, err := DetectLatest(ctx, "rhysd/misc")
 	if err != nil {
 		t.Fatal("Repo having no release should not cause an error:", err)
 	}
@@ -199,17 +227,23 @@ func TestNoReleaseFound(t *testing.T) {
 }
 
 func TestDetectFromBrokenGitHubEnterpriseURL(t *testing.T) {
-	up, err := NewUpdater(Config{APIToken: "hogehoge", EnterpriseBaseURL: "https://example.com"})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	up, err := NewUpdater(ctx, Config{APIToken: "hogehoge", EnterpriseBaseURL: "https://example.com"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, ok, _ := up.DetectLatest("foo/bar")
+	_, ok, _ := up.DetectLatest(ctx, "foo/bar")
 	if ok {
 		t.Fatal("Invalid GitHub Enterprise base URL should raise an error")
 	}
 }
 
 func TestDetectFromGitHubEnterpriseRepo(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	token := os.Getenv("GITHUB_ENTERPRISE_TOKEN")
 	base := os.Getenv("GITHUB_ENTERPRISE_BASE_URL")
 	repo := os.Getenv("GITHUB_ENTERPRISE_REPO")
@@ -223,12 +257,12 @@ func TestDetectFromGitHubEnterpriseRepo(t *testing.T) {
 		t.Skip("because repo slug for GHE is not found")
 	}
 
-	up, err := NewUpdater(Config{APIToken: token, EnterpriseBaseURL: base})
+	up, err := NewUpdater(ctx, Config{APIToken: token, EnterpriseBaseURL: base})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	r, ok, err := up.DetectLatest(repo)
+	r, ok, err := up.DetectLatest(ctx, repo)
 	if err != nil {
 		t.Fatal("Fetch failed:", err)
 	}

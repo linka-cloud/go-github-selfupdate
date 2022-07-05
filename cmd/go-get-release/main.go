@@ -1,15 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"github.com/rhysd/go-github-selfupdate/selfupdate"
 	"go/build"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
 
 var version = "1.0.0"
@@ -77,6 +79,9 @@ func installFrom(url, cmd, path string) error {
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	help := flag.Bool("help", false, "Show help")
 	ver := flag.Bool("version", false, "Show version")
 
@@ -99,7 +104,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	latest, found, err := selfupdate.DetectLatest(slug)
+	latest, found, err := selfupdate.DetectLatest(ctx, slug)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error while detecting the latest version:", err)
 		os.Exit(1)
@@ -118,7 +123,7 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		if err := selfupdate.UpdateTo(latest.AssetURL, cmdPath); err != nil {
+		if err := selfupdate.UpdateTo(ctx, latest.AssetURL, cmdPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error while replacing the binary with %s: %s\n", latest.AssetURL, err)
 			os.Exit(1)
 		}

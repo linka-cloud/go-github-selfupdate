@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"github.com/rhysd/go-github-selfupdate/selfupdate"
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
 
 func usage() {
@@ -15,6 +17,9 @@ func usage() {
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	asset := flag.Bool("asset", false, "Output URL to asset")
 	notes := flag.Bool("release-notes", false, "Output release notes additionally")
 	url := flag.Bool("url", false, "Output URL for release page")
@@ -44,7 +49,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	latest, found, err := selfupdate.DetectLatest(repo)
+	latest, found, err := selfupdate.DetectLatest(ctx, repo)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
